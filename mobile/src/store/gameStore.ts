@@ -6,6 +6,9 @@
 import { create } from 'zustand';
 import { DictionaryService, ValidationResult } from '../services/dictionary';
 import { ScoringService, ScoreBreakdown } from '../services/game';
+import { RuleEngine, getDefaultRuleSet } from '../services/rules';
+import type { RuleSet, GameMode } from '../../../shared/types/rules.types';
+import { GameMode as GM } from '../../../shared/types/rules.types';
 
 export interface WordEntry {
   word: string;
@@ -14,6 +17,7 @@ export interface WordEntry {
   scoreBreakdown?: ScoreBreakdown;
   timestamp: number;
   reason?: string;
+  failedRules?: string[]; // Rules that failed validation
 }
 
 export interface GameConfig {
@@ -21,6 +25,8 @@ export interface GameConfig {
   minWordLength: number;
   maxWordLength: number;
   roundDuration: number; // seconds
+  gameMode: GameMode;
+  ruleSet?: RuleSet;
 }
 
 export interface GameStats {
@@ -61,6 +67,8 @@ const initialConfig: GameConfig = {
   minWordLength: 3,
   maxWordLength: 15,
   roundDuration: 120, // 2 minutes
+  gameMode: GM.TIMER_BASED,
+  ruleSet: getDefaultRuleSet(GM.TIMER_BASED),
 };
 
 const initialStats: GameStats = {
@@ -132,14 +140,28 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
-    // Validate word
+    // Validate word against dictionary
     const validation: ValidationResult = DictionaryService.validateWord(word, {
       category: state.config.category,
       minLength: state.config.minWordLength,
       maxLength: state.config.maxWordLength,
     });
 
-    if (validation.isValid) {
+    // Apply rule engine if dictionary validation passed and rules are configured
+    let ruleValidation = { isValid: true, failedRules: [] as any[] };
+    if (validation.isValid && state.config.ruleSet) {
+      ruleValidation = RuleEngine.applyRuleSet(
+        state.config.ruleSet,
+        word,
+        {
+          submittedWords: state.submittedWords.map(w => w.word.toLowerCase()),
+          minLength: state.config.minWordLength,
+          maxLength: state.config.maxWordLength,
+        }
+      );
+    }
+
+    if (validation.isValid && ruleValidation.isValid) {
       // Calculate score
       const submissionTime = state.roundStartTime
         ? Date.now() - state.roundStartTime
@@ -155,7 +177,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       // Apply combo multiplier
       const newCombo = state.stats.comboCount + 1;
       const comboMultiplier = ScoringService.getComboMultiplier(newCombo);
-      const finalScore = Math.round(scoreBreakdown.totalScore * comboMultiplier);
+
+      // Apply rule set scoring multiplier
+      const ruleMultiplier = state.config.ruleSet
+        ? RuleEngine.getScoringMultiplier(state.config.ruleSet)
+        : 1.0;
+
+      const finalScore = Math.round(scoreBreakdown.totalScore * comboMultiplier * ruleMultiplier);
 
       // Create entry
       const entry: WordEntry = {
@@ -200,12 +228,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       // Invalid word - add penalty
       const penalty = ScoringService.calculatePenalty();
 
+      // Determine reason (dictionary or rule failure)
+      let reason = validation.reason;
+      let failedRuleNames: string[] = [];
+
+      if (!validation.isValid) {
+        reason = validation.reason;
+      } else if (!ruleValidation.isValid) {
+        failedRuleNames = ruleValidation.failedRules.map(r => r.name);
+        reason = `Failed rules: ${failedRuleNames.join(', ')}`;
+      }
+
       const entry: WordEntry = {
         word,
         isValid: false,
         score: penalty,
         timestamp: Date.now(),
-        reason: validation.reason,
+        reason,
+        failedRules: failedRuleNames.length > 0 ? failedRuleNames : undefined,
       };
 
       set({
