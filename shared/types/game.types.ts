@@ -2,6 +2,8 @@
  * Shared types between client and server
  */
 
+import type { Rule } from './rules.types';
+
 export enum GamePhase {
   LOBBY = 'LOBBY',
   RULE_CONFIG = 'RULE_CONFIG',
@@ -33,15 +35,8 @@ export interface WordSubmission {
   score?: number;
 }
 
-export interface GameRule {
-  id: string;
-  name: string;
-  description: string;
-  type: 'validation' | 'scoring' | 'timing';
-  enabled: boolean;
-  overridable: boolean;
-  config?: Record<string, any>;
-}
+// Re-export Rule from rules.types as GameRule
+export type GameRule = Rule;
 
 export interface GameConfig {
   theme?: string;
@@ -49,6 +44,8 @@ export interface GameConfig {
   timeLimit?: number;
   minWordLength?: number;
   maxWordLength?: number;
+  roundDuration?: number; // For timer-based (seconds)
+  turnDuration?: number; // For turn-based (hours)
   rules: GameRule[];
 }
 
