@@ -29,6 +29,7 @@
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.0",
     "@types/react": "~19.1.0",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
@@ -37,6 +38,7 @@
     "eslint-plugin-react": "^7.37.5",
     "jest": "^30.2.0",
     "prettier": "^3.6.2",
+    "ts-jest": "^29.4.5",
     "typescript": "~5.9.2"
   },
   "private": true

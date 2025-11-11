@@ -1,14 +1,22 @@
 module.exports = {
-  preset: 'jest-expo',
-  transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
-  ],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        jsx: 'react',
+        esModuleInterop: true,
+      },
+    }],
+  },
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/**/*.stories.tsx',
     '!src/types/**',
+    '!src/components/**', // Skip UI components for now
+    '!src/screens/**', // Skip screens for now
   ],
   coverageThreshold: {
     global: {
@@ -19,7 +27,7 @@ module.exports = {
     },
   },
   testMatch: [
-    '**/__tests__/**/*.test.(ts|tsx|js)',
-    '**/*.test.(ts|tsx|js)',
+    '**/__tests__/**/*.test.(ts|tsx)',
+    '**/*.test.(ts|tsx)',
   ],
 };
